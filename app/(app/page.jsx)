@@ -1,0 +1,293 @@
+'use client';
+import React, { useState, useEffect } from 'react';
+import { Settings, Trash2, ArrowRightLeft, ShieldCheck, Search, PlusCircle } from 'lucide-react';
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState('user');
+  const [adminAuth, setAdminAuth] = useState('');
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [inventory, setInventory] = useState([]);
+  const [selectedItems, setSelectedItems] = useState([]);
+  const [search, setSearch] = useState('');
+  const [tradeStatus, setTradeStatus] = useState('');
+
+  const [newItem, setNewItem] = useState({
+    name: '', category: 'Godly', subType: 'Knife', value: 100, stock: 1, icon: '⚔️'
+  });
+
+  const loadData = async () => {
+    try {
+      const res = await fetch('/api/admin');
+      const data = await res.json();
+      if (data.success) setInventory(data.items);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  const handleAdminLogin = (e) => {
+    e.preventDefault();
+    if (adminAuth === 'siyoko2121') {
+      setIsAdminLoggedIn(true);
+    } else {
+      alert('Hatalı Şifre!');
+    }
+  };
+
+  const handleAddItem = async (e) => {
+    e.preventDefault();
+    const res = await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auth: 'siyoko2121', action: 'ADD_ITEM', payload: newItem })
+    });
+    const data = await res.json();
+    if (data.success) {
+      setInventory(data.items);
+      setNewItem({ name: '', category: 'Godly', subType: 'Knife', value: 100, stock: 1, icon: '⚔️' });
+    }
+  };
+
+  const handleDeleteItem = async (id) => {
+    const res = await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auth: 'siyoko2121', action: 'DELETE_ITEM', payload: { id } })
+    });
+    const data = await res.json();
+    if (data.success) setInventory(data.items);
+  };
+
+  const toggleSelect = (item) => {
+    if (selectedItems.some((i) => i.id === item.id)) {
+      setSelectedItems(selectedItems.filter((i) => i.id !== item.id));
+    } else {
+      setSelectedItems([...selectedItems, item]);
+    }
+  };
+
+  const totalValue = selectedItems.reduce((acc, curr) => acc + Number(curr.value), 0);
+
+  return (
+    <div className="min-h-screen bg-[#0d0f17] text-slate-100 font-sans selection:bg-purple-500 selection:text-white">
+      {/* Top Navbar */}
+      <nav className="border-b border-purple-900/30 bg-[#121522]/80 backdrop-blur-md px-6 py-4 flex justify-between items-center sticky top-0 z-50">
+        <div className="flex items-center gap-3">
+          <div className="bg-gradient-to-tr from-purple-600 to-indigo-500 p-2 rounded-xl shadow-lg shadow-purple-500/20">
+            <ArrowRightLeft className="w-6 h-6 text-white" />
+          </div>
+          <span className="font-black text-2xl tracking-wider bg-gradient-to-r from-purple-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
+            BLOXSWAPS <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 font-semibold">MM2</span>
+          </span>
+        </div>
+        <div className="flex gap-3">
+          <button 
+            onClick={() => setActiveTab('user')} 
+            className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2 ${
+              activeTab === 'user' 
+                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-600/30' 
+                : 'bg-[#1a1d2e] text-slate-400 hover:text-white hover:bg-[#23273e]'
+            }`}
+          >
+            <ArrowRightLeft className="w-4 h-4" /> Takas Paneli
+          </button>
+          <button 
+            onClick={() => setActiveTab('admin')} 
+            className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 flex items-center gap-2 ${
+              activeTab === 'admin' 
+                ? 'bg-gradient-to-r from-rose-600 to-pink-600 text-white shadow-lg shadow-rose-600/30' 
+                : 'bg-[#1a1d2e] text-slate-400 hover:text-white hover:bg-[#23273e]'
+            }`}
+          >
+            <Settings className="w-4 h-4" /> Admin
+          </button>
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      {activeTab === 'user' ? (
+        <main className="max-w-7xl mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Inventory Area */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="relative">
+              <Search className="absolute left-4 top-3.5 w-5 h-5 text-slate-500" />
+              <input 
+                type="text" 
+                placeholder="Eşya Ara (Nik Scythe, Harvester...)" 
+                value={search} 
+                onChange={(e) => setSearch(e.target.value)} 
+                className="w-full bg-[#141726] border border-slate-800/80 rounded-2xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:border-purple-500/50 transition-all placeholder:text-slate-600"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {inventory.filter(i => i.name.toLowerCase().includes(search.toLowerCase())).map((item) => {
+                const isSelected = selectedItems.some(i => i.id === item.id);
+                return (
+                  <div 
+                    key={item.id} 
+                    onClick={() => toggleSelect(item)} 
+                    className={`group cursor-pointer relative bg-[#141726] border transition-all duration-200 p-4 rounded-2xl flex flex-col justify-between hover:scale-[1.02] ${
+                      isSelected 
+                        ? 'border-purple-500 bg-purple-950/20 shadow-lg shadow-purple-500/10' 
+                        : 'border-slate-800/80 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="text-4xl text-center my-3 group-hover:scale-110 transition-transform">
+                      {item.icon}
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm text-slate-200 truncate">{item.name}</div>
+                      <div className="flex justify-between items-center mt-2">
+                        <span className="text-xs px-2 py-0.5 rounded-md bg-purple-500/10 border border-purple-500/20 text-purple-400 font-semibold">
+                          {item.value.toLocaleString()} P
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-medium">Stok: {item.stock}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Trade Summary Box */}
+          <div className="bg-[#141726] border border-slate-800/80 p-6 rounded-2xl flex flex-col justify-between h-[520px] sticky top-24">
+            <div>
+              <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+                <h3 className="font-bold text-lg flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-purple-400" /> Seçilen Eşyalar
+                </h3>
+                <span className="text-xs text-slate-500 font-semibold">{selectedItems.length} Eşya</span>
+              </div>
+              <div className="mt-4 space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                {selectedItems.length === 0 ? (
+                  <div className="text-center py-12 text-slate-600 text-sm">
+                    Henüz eşya seçilmedi. Sol taraftan takas yapmak istediğin eşyalara tıkla.
+                  </div>
+                ) : (
+                  selectedItems.map(i => (
+                    <div key={i.id} className="flex justify-between items-center text-xs bg-[#0d0f17] border border-slate-800/50 p-3 rounded-xl">
+                      <span className="font-medium text-slate-300">{i.icon} {i.name}</span>
+                      <span className="font-bold text-purple-400">{Number(i.value).toLocaleString()} P</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="border-t border-slate-800/80 pt-4">
+              <div className="flex justify-between font-bold text-base mb-4">
+                <span className="text-slate-400">Toplam Değer:</span>
+                <span className="text-purple-400 text-xl font-extrabold">{totalValue.toLocaleString()} Puan</span>
+              </div>
+              <button 
+                onClick={() => setTradeStatus('Takas isteği yöneticilere iletildi!')} 
+                disabled={selectedItems.length === 0}
+                className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 disabled:opacity-50 font-bold py-3.5 rounded-xl text-sm shadow-lg shadow-purple-600/25 transition-all"
+              >
+                Takas Başlat
+              </button>
+              {tradeStatus && (
+                <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs mt-3 text-center font-semibold">
+                  {tradeStatus}
+                </div>
+              )}
+            </div>
+          </div>
+        </main>
+      ) : (
+        /* Admin Panel */
+        <main className="max-w-4xl mx-auto p-4 sm:p-6">
+          {!isAdminLoggedIn ? (
+            <form onSubmit={handleAdminLogin} className="bg-[#141726] border border-slate-800/80 p-8 rounded-2xl space-y-5 max-w-md mx-auto mt-12 shadow-2xl">
+              <div className="text-center space-y-2">
+                <div className="w-12 h-12 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-2xl flex items-center justify-center mx-auto">
+                  <Settings className="w-6 h-6" />
+                </div>
+                <h2 className="font-black text-xl">Admin Girişi</h2>
+                <p className="text-xs text-slate-500">BloxSwaps yönetim paneline erişmek için şifrenizi girin.</p>
+              </div>
+              <input 
+                type="password" 
+                placeholder="Admin Şifresi" 
+                value={adminAuth} 
+                onChange={(e) => setAdminAuth(e.target.value)} 
+                className="w-full bg-[#0d0f17] border border-slate-800 p-3.5 rounded-xl text-sm focus:outline-none focus:border-rose-500/50 transition-all"
+              />
+              <button className="w-full bg-rose-600 hover:bg-rose-500 font-bold py-3.5 rounded-xl text-sm transition-all shadow-lg shadow-rose-600/25">
+                Giriş Yap
+              </button>
+            </form>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Add Item Form */}
+              <form onSubmit={handleAddItem} className="bg-[#141726] border border-slate-800/80 p-6 rounded-2xl space-y-4">
+                <h3 className="font-bold text-base flex items-center gap-2 border-b border-slate-800/80 pb-3">
+                  <PlusCircle className="w-5 h-5 text-purple-400" /> Yeni Eşya Ekle
+                </h3>
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <label className="text-slate-400 block mb-1">Eşya Adı</label>
+                    <input 
+                      type="text" 
+                      placeholder="Örn: Icebreaker" 
+                      required 
+                      value={newItem.name} 
+                      onChange={(e) => setNewItem({ ...newItem, name: e.target.value })} 
+                      className="w-full bg-[#0d0f17] border border-slate-800 p-3 rounded-xl text-sm focus:outline-none focus:border-purple-500/50"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-400 block mb-1">Puan / Değer</label>
+                    <input 
+                      type="number" 
+                      placeholder="Örn: 2500" 
+                      required 
+                      value={newItem.value} 
+                      onChange={(e) => setNewItem({ ...newItem, value: e.target.value })} 
+                      className="w-full bg-[#0d0f17] border border-slate-800 p-3 rounded-xl text-sm focus:outline-none focus:border-purple-500/50"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-slate-400 block mb-1">Simge (Emoji)</label>
+                    <input 
+                      type="text" 
+                      placeholder="⚔️ veya 🏹" 
+                      value={newItem.icon} 
+                      onChange={(e) => setNewItem({ ...newItem, icon: e.target.value })} 
+                      className="w-full bg-[#0d0f17] border border-slate-800 p-3 rounded-xl text-sm focus:outline-none focus:border-purple-500/50"
+                    />
+                  </div>
+                </div>
+                <button className="w-full bg-purple-600 hover:bg-purple-500 font-bold py-3 rounded-xl text-sm transition-all shadow-lg shadow-purple-600/25">
+                  Veritabanına Ekle
+                </button>
+              </form>
+
+              {/* Database List */}
+              <div className="bg-[#141726] border border-slate-800/80 p-6 rounded-2xl space-y-3">
+                <h3 className="font-bold text-base border-b border-slate-800/80 pb-3 flex justify-between items-center">
+                  <span>Mevcut Envanter</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">{inventory.length} Eşya</span>
+                </h3>
+                <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+                  {inventory.map((item) => (
+                    <div key={item.id} className="flex justify-between items-center bg-[#0d0f17] border border-slate-800/50 p-3 rounded-xl text-xs">
+                      <span className="font-semibold text-slate-300">{item.icon} {item.name} ({item.value} P)</span>
+                      <button onClick={() => handleDeleteItem(item.id)} className="text-rose-500 hover:bg-rose-500/10 p-2 rounded-lg transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </main>
+      )}
+    </div>
+  );
+}
